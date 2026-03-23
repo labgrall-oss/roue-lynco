@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Roue Lynco</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #262656; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; font-family: Arial, sans-serif; }
+h1 { color: #BFE1D9; margin-bottom: 20px; font-size: 28px; }
+canvas { border-radius: 50%; box-shadow: 0 0 30px rgba(0,0,0,0.5); }
+#spinBtn { margin-top: 25px; padding: 15px 40px; background: #ED685A; color: white; border: none; border-radius: 30px; font-size: 20px; cursor: pointer; font-weight: bold; }
+#spinBtn:hover { background: #d4554a; }
+#result { margin-top: 20px; font-size: 24px; color: #BFE1D9; font-weight: bold; min-height: 35px; }
+</style>
+</head>
+<body>
+<h1>🎡 Roue des Lots Lynco</h1>
+<canvas id="wheel" width="500" height="500"></canvas>
+<button id="spinBtn" onclick="spinWheel()">TOURNER !</button>
+<div id="result"></div>
+
+<script>
+const lots = [
+  "Spa & Bien-être",
+  "Bon Restaurant",
+  "Activité Sportive",
+  "Coffret Cadeau",
+  "Journée Aventure",
+  "Bon Shopping",
+  "Voyage Weekend",
+  "Expérience Culinaire"
+];
+
+const colors = ["#ED685A","#BFE1D9","#262656","#ED685A","#BFE1D9","#262656","#ED685A","#BFE1D9"];
+const canvas = document.getElementById("wheel");
+const ctx = canvas.getContext("2d");
+const numSegments = lots.length;
+const arc = (2 * Math.PI) / numSegments;
+let currentAngle = 0;
+let spinning = false;
+
+function drawWheel(angle) {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  for (let i = 0; i < numSegments; i++) {
+    const start = angle + i * arc;
+    ctx.beginPath();
+    ctx.moveTo(250, 250);
+    ctx.arc(250, 250, 240, start, start + arc);
+    ctx.closePath();
+    ctx.fillStyle = colors[i];
+    ctx.fill();
+    ctx.strokeStyle = "white";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.save();
+    ctx.translate(250, 250);
+    ctx.rotate(start + arc / 2);
+    ctx.textAlign = "right";
+    ctx.fillStyle = i === 2 || i === 5 ? "#BFE1D9" : "#262656";
+    ctx.font = "bold 14px Arial";
+    ctx.fillText(lots[i], 230, 5);
+    ctx.restore();
+  }
+  // Flèche
+  ctx.beginPath();
+  ctx.moveTo(490, 240);
+  ctx.lineTo(490, 260);
+  ctx.lineTo(460, 250);
+  ctx.closePath();
+  ctx.fillStyle = "#ED685A";
+  ctx.fill();
+}
+
+function spinWheel() {
+  if (spinning) return;
+  spinning = true;
+  document.getElementById("result").innerText = "";
+  const totalRotation = (Math.random() * 5 + 5) * 2 * Math.PI;
+  const duration = 4000;
+  const start = performance.now();
+  const startAngle = currentAngle;
+
+  function animate(now) {
+    const elapsed = now - start;
+    const progress = Math.min(elapsed / duration, 1);
+    const ease = 1 - Math.pow(1 - progress, 3);
+    currentAngle = startAngle + totalRotation * ease;
+    drawWheel(currentAngle);
+    if (progress < 1) {
+      requestAnimationFrame(animate);
+    } else {
+      spinning = false;
+      const normalized = ((currentAngle % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+      const index = Math.floor((2 * Math.PI - normalized) / arc) % numSegments;
+      document.getElementById("result").innerText = "🎉 " + lots[index] + " !";
+    }
+  }
+  requestAnimationFrame(animate);
+}
+
+drawWheel(currentAngle);
+</script>
+</body>
+</html>
