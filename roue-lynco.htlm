@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Roue Lynco</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{
+  background:#262656;
+  font-family:Arial,sans-serif;
+  min-height:100vh;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  padding:20px;
+}
+h1{color:#ED685A;font-size:2.5rem;font-weight:900;letter-spacing:5px;margin-bottom:2px;}
+.sub{color:#BFE1D9;letter-spacing:8px;font-size:0.75rem;margin-bottom:20px;}
+.roue-wrap{
+  position:relative;
+  width:min(520px,85vw);
+  height:min(520px,85vw);
+}
+.fleche{
+  position:absolute;
+  top:-14px;
+  left:50%;
+  transform:translateX(-50%);
+  width:0;height:0;
+  border-left:16px solid transparent;
+  border-right:16px solid transparent;
+  border-top:32px solid #ED685A;
+  z-index:10;
+  filter:drop-shadow(0 2px 8px rgba(237,104,90,0.9));
+}
+#roueSVG{
+  width:100%;
+  height:100%;
+  border-radius:50%;
+  border:6px solid #ED685A;
+  box-shadow:0 0 50px rgba(237,104,90,0.6);
+}
+#btnSpin{
+  position:absolute;
+  top:50%;left:50%;
+  transform:translate(-50%,-50%);
+  width:82px;height:82px;
+  border-radius:50%;
+  background:#ED685A;
+  color:white;
+  font-weight:900;
+  font-size:1.05rem;
+  border:4px solid white;
+  cursor:pointer;
+  z-index:20;
+  box-shadow:0 0 24px rgba(237,104,90,0.9);
+}
+#btnSpin:disabled{opacity:0.6;cursor:default;}
+#resultat{
+  display:none;
+  background:#ED685A;
+  color:white;
+  padding:16px 40px;
+  border-radius:16px;
+  font-size:1.3rem;
+  font-weight:bold;
+  margin:18px 0 10px;
+  text-align:center;
+  max-width:90vw;
+}
+#btnEdit{
+  background:transparent;
+  color:#BFE1D9;
+  border:2px solid #BFE1D9;
+  padding:13px 44px;
+  border-radius:50px;
+  font-size:0.95rem;
+  cursor:pointer;
+  margin-top:6px;
+}
+
+/* PANEL */
+#overlay{
+  display:none;
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,0.7);
+  z-index:100;
+  align-items:center;
+  justify-content:center;
+}
+#overlay.on{display:flex;}
+#panel{
+  background:#1a1a40;
+  border-radius:18px;
+  padding:24px;
+  width:380px;
+  max-width:95vw;
+  max-height:90vh;
+  overflow-y:auto;
+}
+#panel h2{color:#ED685A;margin-bottom:14px;font-size:1.2rem;}
+.ei{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin-bottom:8px;
+}
+.ei label{color:#BFE1D9;font-size:0.78rem;min-width:52px;}
+.ei input[type=text]{
+  flex:1;
+  padding:7px 10px;
+  background:#262656;
+  border:1px solid #ED685A;
+  border-radius:7px;
+  color:white;
+  font-size:0.9rem;
+}
+.ei input[type=color]{
+  width:38px;height:34px;
+  border:2px solid #ED685A;
+  border-radius:6px;
+  background:none;
+  cursor:pointer;
+  padding:2px;
+}
+.panel-btns{display:flex;gap:10px;margin-top:14px;}
+.btn-apply{
+  background:#ED685A;color:white;border:none;
+  padding:10px 28px;border-radius:8px;
+  cursor:pointer;font-weight:bold;flex:1;
+}
+.btn-close{
+  background:transparent;color:#BFE1D9;
+  border:1px solid #BFE1D9;
+  padding:10px 20px;border-radius:8px;cursor:pointer;
+}
+</style>
+</head>
+<body>
+
+<h1>LYNCO</h1>
+<p class="sub">RÉSEAU</p>
+
+<div class="roue-wrap">
+  <div class="fleche"></div>
+  <svg id="roueSVG" viewBox="0 0 500 500" xmlns="http://www.w3.org/2000/svg"></svg>
+  <button id="btnSpin">SPIN</button>
+</div>
+
+<div id="resultat"></div>
+<button id="btnEdit">⚙ Modifier les lots</button>
+
+<!-- PANEL EDITION -->
+<div id="overlay">
+  <div id="panel">
+    <h2>⚙ Modifier les lots</h2>
+    <div id="editZone"></div>
+    <div class="panel-btns">
+      <button class="btn-apply" id="btnApply">✔ Appliquer</button>
+      <button class="btn-close" id="btnClose">✕ Fermer</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// =============================================
+// 12 LOTS — 3 couleurs jamais adjacentes identiques
+// Ordre couleurs : Corail / Vert / Bleu / Corail / Vert / Bleu ...
+// Goodies en positions 0, 4, 8 (équirépartis)
+// =============================================
+var lots = [
+  { t:'🍺 Biere',          c:'#ED685A' },
+  { t:'Bon cadeau',        c:'#BFE1D9' },
+  { t:'Bon cadeau',        c:'#262656' },
+  { t:'Bon cadeau',        c:'#ED685A' },
+  { t:'🧴 Gourde',         c:'#BFE1D9' },
+  { t:'Bon cadeau',        c:'#262656' },
+  { t:'Bon cadeau',        c:'#ED685A' },
+  { t:'Bon cadeau',        c:'#BFE1D9' },
+  { t:'📱 Support tel.',   c:'#262656' },
+  { t:'Bon cadeau',        c:'#ED685A' },
+  { t:'Bon cadeau',        c:'#BFE1D9' },
+  { t:'Bon cadeau',        c:'#262656' }
+];
+
+var angle   = 0;
+var spinning = false;
+
+// =============================================
+// DESSIN SVG
+// =============================================
+function dessiner() {
+  var svg = document.getElementById('roueSVG');
+  while(svg.firstChild) svg.removeChild(svg.firstChild);
+
+  var N  = lots.length;
+  var cx = 250, cy = 250, r = 244;
+  var step = (2 * Math.PI) / N;
+
+  for (var i = 0; i < N; i++) {
+    var a1 = i * step - Math.PI / 2;
+    var a2 = a1 + step;
+
+    var x1 = cx + r * Math.cos(a1);
+    var y1 = cy + r * Math.sin(a1);
+    var x2 = cx + r * Math.cos(a2);
+    var y2 = cy + r * Math.sin(a2);
+
+    // Secteur
+    var path = document.createElementNS('http://www.w3.org/2000/svg','path');
+    path.setAttribute('d','M '+cx+' '+cy+' L '+x1+' '+y1+' A '+r+' '+r+' 0 0 1 '+x2+' '+y2+' Z');
+    path.setAttribute('fill', lots[i].c);
+    path.setAttribute('stroke','#FFFFFF');
+    path.setAttribute('stroke-width','2');
+    svg.appendChild(path);
+
+    // Texte
+    var midA = a1 + step / 2;
+    var tr   = r * 0.63;
+    var tx   = cx + tr * Math.cos(midA);
+    var ty   = cy + tr * Math.sin(midA);
+    var tcolor = (lots[i].c === '#BFE1D9') ? '#262656' : '#FFFFFF';
+    var rotD = midA * 180 / Math.PI;
+
+    var txt = document.createElementNS('http://www.w3.org/2000/svg','text');
+    txt.setAttribute('x', tx);
+    txt.setAttribute('y', ty);
+    txt.setAttribute('text-anchor','middle');
+    txt.setAttribute('dominant-baseline','middle');
+    txt.setAttribute('fill', tcolor);
+    txt.setAttribute('font-size','15');
+    txt.setAttribute('font-weight','bold');
+    txt.setAttribute('font-family','Arial,sans-serif');
+    txt.setAttribute('transform','rotate('+rotD+','+tx+','+ty+')');
+    txt.textContent = lots[i].t;
+    svg.appendChild(txt);
+  }
+
+  // Hub central
+  var hub = document.createElementNS('http://www.w3.org/2000/svg','circle');
+  hub.setAttribute('cx',cx); hub.setAttribute('cy',cy);
+  hub.setAttribute('r','52');
+  hub.setAttribute('fill','#ED685A');
+  hub.setAttribute('stroke','#FFFFFF');
+  hub.setAttribute('stroke-width','4');
+  svg.appendChild(hub);
+}
+
+// =============================================
+// ANIMATION SPIN
+// =============================================
+function lancer() {
+  if (spinning) return;
+  spinning = true;
+  document.getElementById('btnSpin').disabled = true;
+  document.getElementById('resultat').style.display = 'none';
+
+  var tours  = 6 + Math.floor(Math.random() * 6);
+  var extra  = Math.random() * 360;
+  var total  = tours * 360 + extra;
+  var duree  = 4500 + Math.random() * 2000;
+  var debut  = null;
+  var start  = angle;
+
+  function frame(ts) {
+    if (!debut) debut = ts;
+    var t    = Math.min((ts - debut) / duree, 1);
+    var ease = 1 - Math.pow(1 - t, 4);
+    angle    = start + total * ease;
+    document.getElementById('roueSVG').style.transform = 'rotate(' + angle + 'deg)';
+    if (t < 1) {
+      requestAnimationFrame(frame);
+    } else {
+      spinning = false;
+      document.getElementById('btnSpin').disabled = false;
+      afficherResultat();
+    }
+  }
+  requestAnimationFrame(frame);
+}
+
+function afficherResultat() {
+  var N    = lots.length;
+  var step = 360 / N;
+  var norm = ((-(angle % 360)) + 360) % 360;
+  var idx  = Math.floor(norm / step) % N;
+  var box  = document.getElementById('resultat');
+  box.innerHTML = '🎉 Vous gagnez : <strong>' + lots[idx].t + '</strong> !';
+  box.style.display = 'block';
+}
+
+// =============================================
+// PANEL EDITION
+// =============================================
+function ouvrirPanel() {
+  var z = document.getElementById('editZone');
+  z.innerHTML = '';
+  for (var i = 0; i < lots.length; i++) {
+    (function(k){
+      var d = document.createElement('div');
+      d.className = 'ei';
+      d.innerHTML =
+        '<label>Case '+(k+1)+'</label>'+
+        '<input type="text" id="et'+k+'" value="'+lots[k].t+'">'+
+        '<input type="color" id="ec'+k+'" value="'+lots[k].c+'">';
+      z.appendChild(d);
+    })(i);
+  }
+  document.getElementById('overlay').className = 'on';
+}
+
+function appliquer() {
+  for (var i = 0; i < lots.length; i++) {
+    var t = document.getElementById('et'+i);
+    var c = document.getElementById('ec'+i);
+    if (t && t.value.trim()) lots[i].t = t.value.trim();
+    if (c) lots[i].c = c.value;
+  }
+  dessiner();
+  document.getElementById('overlay').className = '';
+}
+
+// =============================================
+// EVENTS
+// =============================================
+document.getElementById('btnSpin').onclick  = lancer;
+document.getElementById('btnEdit').onclick  = ouvrirPanel;
+document.getElementById('btnApply').onclick = appliquer;
+document.getElementById('btnClose').onclick = function(){ document.getElementById('overlay').className=''; };
+document.getElementById('overlay').onclick  = function(e){ if(e.target===this) this.className=''; };
+
+// DEMARRAGE
+dessiner();
+</script>
+</body>
+</html>
