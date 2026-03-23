@@ -1,2 +1,2 @@
 # roue-lynco
-Roue des lots Lynco
+Lynco Experts-Comptables
